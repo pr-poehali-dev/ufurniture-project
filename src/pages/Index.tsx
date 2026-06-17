@@ -1,5 +1,7 @@
-import { useState, useRef, MouseEvent } from 'react';
+import { useState, useRef, MouseEvent, FormEvent } from 'react';
 import Icon from '@/components/ui/icon';
+
+const LEAD_URL = 'https://functions.poehali.dev/c2e1eef8-2677-4103-a159-aae2ca314609';
 
 const HERO_IMG = 'https://cdn.poehali.dev/projects/f9a6bc05-67f6-444c-9b47-63201b4552ca/files/181a36d1-2a71-45c3-a114-22ce830ea59b.jpg';
 
@@ -10,7 +12,7 @@ const portfolio = [
     cat: 'Мягкая мебель',
   },
   {
-    img: 'https://cdn.poehali.dev/projects/f9a6bc05-67f6-444c-9b47-63201b4552ca/files/a450abf5-4927-4308-8160-cce30cd5edbc.jpg',
+    img: 'https://cdn.poehali.dev/projects/f9a6bc05-67f6-444c-9b47-63201b4552ca/files/159e0b94-80c3-4916-9bdb-dbfff4a8e94b.jpg',
     title: 'Кухня «Монолит»',
     cat: 'Кухонные гарнитуры',
   },
@@ -95,6 +97,30 @@ export default function Index() {
 
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+
+  const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
+  const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.phone.trim()) {
+      setStatus('error');
+      return;
+    }
+    setStatus('sending');
+    try {
+      const res = await fetch(LEAD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error();
+      setStatus('done');
+      setForm({ name: '', phone: '', email: '', message: '' });
+    } catch {
+      setStatus('error');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-ink text-stone-200 antialiased">
@@ -320,32 +346,48 @@ export default function Index() {
           </div>
 
           <form
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={submit}
             className="space-y-5 rounded-sm border border-white/10 bg-ink/60 p-8 backdrop-blur"
           >
-            {[
-              { ph: 'Ваше имя', type: 'text' },
-              { ph: 'Телефон', type: 'tel' },
-              { ph: 'E-mail', type: 'email' },
-            ].map((f) => (
+            {([
+              { ph: 'Ваше имя', type: 'text', key: 'name' },
+              { ph: 'Телефон', type: 'tel', key: 'phone' },
+              { ph: 'E-mail', type: 'email', key: 'email' },
+            ] as const).map((f) => (
               <input
-                key={f.ph}
+                key={f.key}
                 type={f.type}
                 placeholder={f.ph}
+                value={form[f.key]}
+                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
                 className="w-full border-b border-white/15 bg-transparent py-3 text-white placeholder:text-stone-500 transition-colors focus:border-bronze focus:outline-none"
               />
             ))}
             <textarea
               rows={3}
               placeholder="Расскажите о проекте"
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
               className="w-full resize-none border-b border-white/15 bg-transparent py-3 text-white placeholder:text-stone-500 transition-colors focus:border-bronze focus:outline-none"
             />
             <button
               type="submit"
-              className="w-full bg-bronze py-4 text-sm uppercase tracking-[0.2em] text-ink transition-all hover:bg-bronze-light"
+              disabled={status === 'sending'}
+              className="flex w-full items-center justify-center gap-2 bg-bronze py-4 text-sm uppercase tracking-[0.2em] text-ink transition-all hover:bg-bronze-light disabled:opacity-60"
             >
-              Отправить заявку
+              {status === 'sending' && <Icon name="Loader2" size={18} className="animate-spin" />}
+              {status === 'sending' ? 'Отправляем…' : 'Отправить заявку'}
             </button>
+            {status === 'done' && (
+              <p className="flex items-center justify-center gap-2 text-center text-sm text-bronze-light">
+                <Icon name="CheckCircle2" size={16} /> Спасибо! Мы свяжемся с вами в ближайшее время.
+              </p>
+            )}
+            {status === 'error' && (
+              <p className="text-center text-sm text-red-400">
+                Заполните имя и телефон или попробуйте ещё раз.
+              </p>
+            )}
             <p className="text-center text-xs text-stone-500">
               Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.
             </p>
